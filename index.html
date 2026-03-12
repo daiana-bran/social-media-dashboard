@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function Dashboard() {
+            const [posts, setPosts] = useState([]);
+            const [showQuickAdd, setShowQuickAdd] = useState(false);
+            const [showBulkAdd, setShowBulkAdd] = useState(false);
+            const [showBookmarklets, setShowBookmarklets] = useState(false);
+            const [quickUrl, setQuickUrl] = useState('');
+            const [bulkUrls, setBulkUrls] = useState('');
+            
+            const brands = ['saas.group', 'n8n', 'AddSearch', 'DashThis', 'Usersnap'];
+            
+            useEffect(() => {
+                const saved = localStorage.getItem('socialPosts');
+                if (saved) {
+                    setPosts(JSON.parse(saved));
+                }
+                
+                window.addLinkedInPost = (url, title) => {
+                    const post = {
+                        title: title || 'Post de LinkedIn',
+                        brand: 'saas.group',
+                        url: url,
+                        id: Date.now(),
+                        completed: false,
+                        addedDate: new Date().toISOString()
+                    };
+                    setPosts(prev => [post, ...prev]);
+                    alert('✓ Post agregado!');
+                };
+
+                window.addMultipleLinkedInPosts = (urls) => {
+                    const newPosts = urls.map((url, index) => ({
+                        title: 'Post de LinkedIn',
+                        brand: 'saas.group',
+                        url: url,
+                        id: Date.now() + index,
+                        completed: false,
+                        addedDate: new Date().toISOString()
+                    }));
+                    setPosts(prev => [...newPosts, ...prev]);
+                    alert(`✓ ${urls.length} posts agregados!`);
+                };
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('socialPosts', JSON.stringify(posts));
+            }, [posts]);
+
+            const addQuickPost = () => {
+                if (!quickUrl) return;
+                const post = {
+                    title: 'Post de LinkedIn',
+                    brand: 'saas.group',
+                    url: quickUrl,
+                    id: Date.now(),
+                    completed: false,
+                    addedDate: new Date().toISOString()
+                };
+                setPosts([post, ...posts]);
+                setQuickUrl('');
+                setShowQuickAdd(false);
+            };
+
+            const addBulkPosts = () => {
+                if (!bulkUrls.trim()) return;
+                const urls = bulkUrls.split('\n')
+                    .map(url => url.trim())
+                    .filter(url => url.length > 0 && url.includes('linkedin.com'));
+                
+                if (urls.length === 0) {
+                    alert('No se encontraron URLs de LinkedIn');
+                    return;
+                }
+
+                const newPosts = urls.map((url, index) => ({
+                    title: 'Post de LinkedIn',
+                    brand: 'saas.group',
+                    url: url,
+                    id: Date.now() + index,
+                    completed: false,
+                    addedDate: new Date().toISOString()
+                }));
+
+                setPosts([...newPosts, ...posts]);
+                setBulkUrls('');
+                setShowBulkAdd(false);
+                alert(`✓ ${urls.length} posts agregados!`);
+            };
+
+            const toggleComplete = (id) => {
+                setPosts(posts.map(post => 
+                    post.id === id ? { ...post, completed: !post.completed } : post
+                ));
+            };
+
+            const deletePost = (id) => {
+                setPosts(posts.filter(post => post.id !== id));
+            };
+
+            const pendingCount = posts.filter(p => !p.completed).length;
+            const dashboardUrl = window.location.origin + window.location.pathname;
+            
+            const linkedInBookmarklet = `javascript:(function(){var url=window.location.href;if(url.includes('linkedin.com')){window.open('${dashboardUrl}','_blank');setTimeout(function(){if(window.opener&&window.opener.addLinkedInPost){var title=document.querySelector('h1');window.opener.addLinkedInPost(url,title?title.innerText.substring(0,100):'Post de LinkedIn');window.close();}},1000);}else{alert('Abre desde LinkedIn');}})();`;
+
+            const slackBookmarklet = `javascript:(function(){var links=[];var msgs=document.querySelectorAll('.c-message_kit__text, .p-rich_text_block');msgs.forEach(function(m){var t=m.innerText||m.textContent;var found=t.match(/https?:\\/\\/(www\\.)?linkedin\\.com\\/[^\\s]+/g);if(found){links=links.concat(found);}});if(links.length>0){var u=[...new Set(links)];window.open('${dashboardUrl}','_blank');setTimeout(function(){if(window.opener&&window.opener.addMultipleLinkedInPosts){window.opener.addMultipleLinkedInPosts(u);window.close();}},1000);}else{alert('No se encontraron links');}})();`;
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-violet-100 via-white to-orange-50 p-6">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                            <div className="flex justify-between items-center flex-wrap gap-4">
+                                <div>
+                                    <h1 className="text-3xl font-bold text-gray-900">Social Media Dashboard</h1>
+                                    <p className="text-gray-600 mt-1">Posts pendientes: <span className="font-semibold text-orange-600">{pendingCount}</span></p>
+                                </div>
+                                <div className="flex gap-2 flex-wrap">
+                                    <button onClick={() => setShowBookmarklets(!showBookmarklets)} className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition">
+                                        🔖 Bookmarklets
+                                    </button>
+                                    <button onClick={() => {setShowBulkAdd(!showBulkAdd); setShowQuickAdd(false);}} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition">
+                                        🔗 Bulk Add
+                                    </button>
+                                    <button onClick={() => {setShowQuickAdd(!showQuickAdd); setShowBulkAdd(false);}} className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition">
+                                        ⚡ Quick Add
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {showBookmarklets && (
+                            <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-6 mb-6">
+                                <h2 className="text-xl font-bold text-purple-900 mb-4">🔖 Bookmarklets</h2>
+                                <div className="space-y-4">
+                                    <div className="bg-white rounded-lg p-4 border border-purple-200">
+                                        <h3 className="font-semibold mb-2">📎 Desde LinkedIn</h3>
+                                        <p className="text-sm text-gray-600 mb-3">Arrastra este botón a tus favoritos</p>
+                                        <a href={linkedInBookmarklet} className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 cursor-move" onClick={(e) => e.preventDefault()}>
+                                            📌 Add to Dashboard
+                                        </a>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4 border border-purple-200">
+                                        <h3 className="font-semibold mb-2">💬 Desde Slack</h3>
+                                        <p className="text-sm text-gray-600 mb-3">Arrastra este botón a tus favoritos</p>
+                                        <a href={slackBookmarklet} className="inline-block bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 cursor-move" onClick={(e) => e.preventDefault()}>
+                                            📌 Extract from Slack
+                                        </a>
+                                    </div>
+                                </div>
+                                <button onClick={() => setShowBookmarklets(false)} className="mt-4 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
+                                    Cerrar
+                                </button>
+                            </div>
+                        )}
+
+                        {showBulkAdd && (
+                            <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
+                                <h2 className="text-xl font-semibold mb-4">🔗 Bulk Add</h2>
+                                <textarea 
+                                    value={bulkUrls} 
+                                    onChange={(e) => setBulkUrls(e.target.value)}
+                                    rows={8}
+                                    className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg mb-3 font-mono text-sm"
+                                    placeholder="https://linkedin.com/posts/...&#10;https://linkedin.com/posts/..."
+                                />
+                                <div className="flex gap-3">
+                                    <button onClick={addBulkPosts} disabled={!bulkUrls.trim()} className="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 disabled:opacity-50">
+                                        ✓ Agregar ({bulkUrls.split('\n').filter(u => u.trim().includes('linkedin.com')).length})
+                                    </button>
+                                    <button onClick={() => {setShowBulkAdd(false); setBulkUrls('');}} className="bg-gray-200 px-6 py-3 rounded-lg hover:bg-gray-300">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {showQuickAdd && (
+                            <div className="bg-green-50 border-2 border-green-300 rounded-lg p-6 mb-6">
+                                <h2 className="text-xl font-semibold mb-4">⚡ Quick Add</h2>
+                                <input 
+                                    type="url" 
+                                    value={quickUrl}
+                                    onChange={(e) => setQuickUrl(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && addQuickPost()}
+                                    className="w-full px-4 py-3 border-2 border-green-300 rounded-lg mb-3"
+                                    placeholder="https://linkedin.com/posts/..."
+                                />
+                                <div className="flex gap-3">
+                                    <button onClick={addQuickPost} disabled={!quickUrl} className="flex-1 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 disabled:opacity-50">
+                                        ✓ Agregar
+                                    </button>
+                                    <button onClick={() => {setShowQuickAdd(false); setQuickUrl('');}} className="bg-gray-200 px-6 py-3 rounded-lg hover:bg-gray-300">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {posts.length === 0 ? (
+                                <div className="col-span-full text-center py-12 text-gray-500">
+                                    No hay posts. ¡Prueba los bookmarklets!
+                                </div>
+                            ) : (
+                                posts.map(post => (
+                                    <div key={post.id} className={`bg-white rounded-lg shadow-sm border p-5 hover:shadow-md transition ${post.completed ? 'opacity-60' : ''}`}>
+                                        <div className="flex justify-between mb-3">
+                                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                                                {post.brand}
+                                            </span>
+                                            <button onClick={() => deletePost(post.id)} className="text-gray-400 hover:text-red-500">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                        <h3 className="font-semibold text-gray-900 mb-2">{post.title}</h3>
+                                        <p className="text-xs text-gray-500 mb-4">
+                                            {new Date(post.addedDate).toLocaleDateString('es-ES')}
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <a href={post.url} target="_blank" rel="noopener noreferrer" className="flex-1 bg-orange-500 text-white px-4 py-2 rounded-lg text-center hover:bg-orange-600">
+                                                Ver Post
+                                            </a>
+                                            <button onClick={() => toggleComplete(post.id)} className={`px-4 py-2 rounded-lg ${post.completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                ✓
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+    </script>
+</body>
+</html>
